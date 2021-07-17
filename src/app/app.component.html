@@ -177,7 +177,6 @@
   .terminal {
     position: relative;
     width: 80%;
-    max-width: 600px;
     border-radius: 6px;
     padding-top: 45px;
     margin-top: 8px;
@@ -306,6 +305,9 @@
   .text:hover {
     color: #fff;
   }
+  .itemList {
+    list-style: none;
+  }
 </style>
 
 <!-- Toolbar -->
@@ -368,12 +370,33 @@
 
   <h2>Участники</h2>
   <ul>
-    <li *ngFor="let item of wallet.memberList">{{item}}</li>
+    <li class="itemList" *ngFor="let item of wallet.memberList">{{item}}</li>
   </ul>
 
   <h2>Предложения</h2>
+  <button mat-raised-button color="primary"
+          *ngIf="!hasAddProposalForBecomeMember()"
+          [disabled]="catAddProposalForBecomeMember()">
+    <mat-icon>group_add</mat-icon>
+    Хочу стать официальным членом
+  </button>
   <ul>
-    <li *ngFor="let item of wallet.proposalList">{{item.title}} ({{item.author}})</li>
+    <li class="itemList"
+        *ngFor="let item of wallet.proposalList">
+      <button mat-fab
+              *ngIf="wallet.isAuthenticated()"
+              [disabled]="catVote()">
+        <mat-icon>thumb_down</mat-icon>
+      </button>
+
+      {{item.title}} ({{item.author}})
+      <button mat-fab color="primary"
+              *ngIf="wallet.isAuthenticated()"
+              [disabled]="catVote()">
+        <mat-icon>thumb_up</mat-icon>
+      </button>
+
+    </li>
   </ul>
 
   <!-- Next Steps -->
@@ -408,7 +431,7 @@
   <div class="terminal" [ngSwitch]="selection.value">
       <pre *ngSwitchDefault>npx near view {{wallet.contractName}} member_list</pre>
       <pre *ngSwitchCase="'proposal_list'">npx near view {{wallet.contractName}} proposal_list</pre>
-      <pre *ngSwitchCase="'pwa'">npx near call {{wallet.contractName}} add_member_proposal '{{sample()}}' --deposit 0.005</pre>
+      <pre *ngSwitchCase="'pwa'">npx near call {{wallet.contractName}} add_member_proposal {{'\n'}} '{{sample()}}' --deposit 0.005</pre>
       <pre *ngSwitchCase="'dependency'">npx near call {{wallet.contractName}} action4</pre>
   </div>
   <!-- Footer -->

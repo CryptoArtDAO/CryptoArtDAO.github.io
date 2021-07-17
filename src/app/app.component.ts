@@ -31,6 +31,19 @@ export class AppComponent implements OnInit {
     });
   }
 
+  catAddProposalForBecomeMember(): boolean {
+    return !this.wallet.isAuthenticated() || this.hasAddProposalForBecomeMember()
+  }
+
+  hasAddProposalForBecomeMember(): boolean {
+    return this.wallet.proposalList.filter((it) => it.author === this.wallet.accountId).length > 0
+  }
+
+  catVote(): boolean {
+    console.log('catVote', this.wallet.isAuthenticated() && this.wallet.isMember)
+    return !(this.wallet.isAuthenticated() && this.wallet.isMember)
+  }
+
   // get accountId(): string {
   //   return this.window.connection.getAccountId()
   // }

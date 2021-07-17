@@ -124,6 +124,7 @@ impl Society {
         let proposal_id = self.add_proposal(
             signer_account_id,
             ProposalKind::MemberRequest,
+            ProposalStatus::Vote,
             title,
             description,
         );
@@ -135,6 +136,7 @@ impl Society {
         &mut self,
         author: AccountId,
         kind: ProposalKind,
+        status: ProposalStatus,
         title: Option<String>,
         description: Option<String>,
     ) -> u64 {
@@ -149,7 +151,7 @@ impl Society {
         let proposal = Proposal {
             title,
             kind,
-            status: ProposalStatus::Draft,
+            status,
             description,
             author,
         };

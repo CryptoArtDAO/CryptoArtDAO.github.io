@@ -26,6 +26,7 @@ interface Society extends Contract {
   balance(): Promise<string>
   member_list(): Promise<string[]>
   proposal_list(): Promise<Proposal[]>
+  is_member(account_id: string): Promise<boolean>
 }
 
 @Injectable({
@@ -37,8 +38,9 @@ export class WalletService {
   contract: Society
   accountId: string
   balance: number = 0
-  memberList: string[]
-  proposalList: Proposal[]
+  memberList: string[]  = []
+  proposalList: Proposal[] = []
+  isMember: boolean = false
 
   // constructor(@Inject(WINDOW) private window: Window) {
   constructor() {
@@ -74,6 +76,11 @@ export class WalletService {
         'add_member_proposal'
       ],
     })
+    //this.isMember = await this.contract.is_member(this.accountId)
+    await this.update()
+  }
+
+  async update(): Promise<void> {
     await this.updateBalance()
     await this.updateMemberList()
     await this.updateProposalList()
