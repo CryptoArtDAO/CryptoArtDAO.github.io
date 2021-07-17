@@ -15,9 +15,9 @@ import {
 })
 export class AppComponent implements OnInit {
   title = 'CryptoArt DAO';
-  greeting: string = ''
-  newGreeting: string = ''
-  showNotification = false
+  formProposalForBecomeMember = false
+  proposalForBecomeMemberTitle = ''
+  proposalForBecomeMemberDescription = ''
 
   constructor(
     public wallet: WalletService,
@@ -33,6 +33,15 @@ export class AppComponent implements OnInit {
 
   catAddProposalForBecomeMember(): boolean {
     return !this.wallet.isAuthenticated() || this.hasAddProposalForBecomeMember()
+  }
+
+  addProposalForBecomeMember(): void {
+    this.formProposalForBecomeMember = !this.formProposalForBecomeMember
+  }
+
+  async sendProposalForBecomeMember() {
+    await this.wallet.addMemberProposal(this.proposalForBecomeMemberTitle, this.proposalForBecomeMemberDescription)
+    this.formProposalForBecomeMember = false
   }
 
   hasAddProposalForBecomeMember(): boolean {

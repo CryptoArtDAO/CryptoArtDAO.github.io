@@ -1,5 +1,4 @@
 import {
-  Inject,
   Injectable,
 } from '@angular/core';
 import getConfig from '../../config'
@@ -27,6 +26,7 @@ interface Society extends Contract {
   member_list(): Promise<string[]>
   proposal_list(): Promise<Proposal[]>
   is_member(account_id: string): Promise<boolean>
+  add_member_proposal(param: Object, gas: string, amount: string): Promise<number>
 }
 
 @Injectable({
@@ -96,6 +96,17 @@ export class WalletService {
 
   async updateProposalList(): Promise<void> {
     this.proposalList = await this.contract.proposal_list()
+  }
+
+  addMemberProposal(title: string, description: string): Promise<number> {
+    return this.contract.add_member_proposal(
+      {
+        title,
+        description,
+      },
+      '300000000000000',
+      '5000000000000000000000',
+    )
   }
 
   signIn(): void {
