@@ -1,6 +1,14 @@
 {
   "name": "cryptoartdao",
-  "version": "0.0.0",
+  "version": "1.0.0-beta.0",
+  "license": "UNLICENSED",
+  "description": "CryptoArt DAO on NEAR Protocol",
+  "keywords": [
+    "blockchain",
+    "crypto",
+    "dapps",
+    "nearprotocol"
+  ],
   "scripts": {
     "contract-deploy": "yarn contract-build && yarn contract-only-deploy",
     "contract-only-deploy": "node contract/deploy",
@@ -13,11 +21,11 @@
     "contract-build": "bash src/contract/build.sh",
     "ng": "ng",
     "start": "ng serve",
+    "start:public": "ng serve --disable-host-check",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
-  "private": true,
   "dependencies": {
     "@angular/animations": "~12.1.2",
     "@angular/cdk": "^12.1.2",
