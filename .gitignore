@@ -6,6 +6,10 @@
 /out-tsc
 # Only exists if Bazel was run
 /bazel-out
+target
+build
+src/contract-name.ts
+neardev
 
 # dependencies
 /node_modules

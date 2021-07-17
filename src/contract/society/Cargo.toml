@@ -1,0 +1,23 @@
+[package]
+name = "society"
+description = "CryptoArt DAO"
+homepage = "https://cryptoartdao.github.io/"
+edition = "2018"
+version = "1.0.0-beta.0"
+license = "UNLICENSED"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "society.rs"
+test = true
+doctest = false
+bench = false
+doc = false
+
+[dependencies]
+serde = { version = "1.0.117", features = ["derive"] }
+serde_json = "1.0.59"
+near-sdk = "3.1.0"
+
+[dev-dependencies]
+near-sdk-sim = "3.1.0"
