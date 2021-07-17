@@ -14,10 +14,18 @@ import {
 } from "near-api-js/lib/utils/format";
 const nearConfig = getConfig(process.env.NODE_ENV || 'development')
 
+interface Proposal {
+  title: string
+  description: string
+  kind: string
+  status: string
+  author: string
+}
+
 interface Society extends Contract {
   balance(): Promise<string>
-  set_greeting(value: { message: string }): void
-  get_greeting(value: { account_id: string }): string | null
+  member_list(): Promise<string[]>
+  proposal_list(): Promise<Proposal[]>
 }
 
 @Injectable({
@@ -29,6 +37,8 @@ export class WalletService {
   contract: Society
   accountId: string
   balance: number = 0
+  memberList: string[]
+  proposalList: Proposal[]
 
   // constructor(@Inject(WINDOW) private window: Window) {
   constructor() {
@@ -56,18 +66,29 @@ export class WalletService {
     this.contract = new Contract(this.connection.account(), this.contractName, {
       viewMethods: [
         'balance',
-        'get_greeting',
+        'member_list',
+        'proposal_list',
+        'is_member',
       ],
       changeMethods: [
-        'set_greeting',
+        'add_member_proposal'
       ],
     })
     await this.updateBalance()
-    console.log('this.balance', this.balance)
+    await this.updateMemberList()
+    await this.updateProposalList()
   }
 
   async updateBalance(): Promise<void> {
     this.balance = Math.floor(parseFloat(formatNearAmount(await this.contract.balance())) * 100) / 100
+  }
+
+  async updateMemberList(): Promise<void> {
+    this.memberList = await this.contract.member_list()
+  }
+
+  async updateProposalList(): Promise<void> {
+    this.proposalList = await this.contract.proposal_list()
   }
 
   signIn(): void {

@@ -24,6 +24,13 @@ export class AppComponent implements OnInit {
   ) {
   }
 
+  sample(): string {
+    return JSON.stringify({
+      title: 'max 170',
+      description: 'max 1k'
+    });
+  }
+
   // get accountId(): string {
   //   return this.window.connection.getAccountId()
   // }
