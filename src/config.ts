@@ -13,16 +13,17 @@ interface NetworkConfig {
 
 function getConfig(env: string): NetworkConfig {
   switch (env) {
-    case 'production':
-    case 'mainnet':
-      return {
-        networkId: 'mainnet',
-        nodeUrl: 'https://rpc.mainnet.near.org',
-        contractName: CONTRACT_NAME,
-        walletUrl: 'https://wallet.near.org',
-        helperUrl: 'https://helper.mainnet.near.org',
-        explorerUrl: 'https://explorer.mainnet.near.org',
-      }
+    // INFO temporary off for fix github pages
+    // case 'production':
+    // case 'mainnet':
+    //   return {
+    //     networkId: 'mainnet',
+    //     nodeUrl: 'https://rpc.mainnet.near.org',
+    //     contractName: CONTRACT_NAME,
+    //     walletUrl: 'https://wallet.near.org',
+    //     helperUrl: 'https://helper.mainnet.near.org',
+    //     explorerUrl: 'https://explorer.mainnet.near.org',
+    //   }
     case 'development':
     case 'testnet':
       return {
