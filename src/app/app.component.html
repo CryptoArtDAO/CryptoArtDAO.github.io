@@ -311,6 +311,7 @@
   .itemList {
     list-style: none;
   }
+
   .AddProposalForBecomeMember__input {
     width: 600px;
   }
@@ -369,60 +370,61 @@
     </svg>
   </div>
 
-  <h2>Участники</h2>
+  <h2>Members</h2>
   <ul>
     <li class="itemList" *ngFor="let item of wallet.memberList">{{item}}</li>
   </ul>
 
-  <h2>Предложения</h2>
+  <h2>Proposal</h2>
   <button mat-raised-button color="primary"
           (click)="addProposalForBecomeMember()"
           *ngIf="!hasAddProposalForBecomeMember()"
           [disabled]="catAddProposalForBecomeMember()">
     <mat-icon>group_add</mat-icon>
-    Хочу стать официальным членом
+    I want to become an official member
   </button>
   <div class="AddProposalForBecomeMember" *ngIf="formProposalForBecomeMember">
     <p>
       <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
-        <mat-label>Заголовок</mat-label>
-        <input matInput placeholder="Коротенько как в твиттере" [(ngModel)]="proposalForBecomeMemberTitle" max="170">
+        <mat-label>Title</mat-label>
+        <input matInput placeholder="Briefly like on twitter" [(ngModel)]="proposalForBecomeMemberTitle" max="170">
       </mat-form-field>
     </p>
     <p>
       <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
         <mat-label>Описание</mat-label>
         <textarea matInput
-                  placeholder="Расскажи о себе у тебя 1000 символов" maxlength="1000"
+                  placeholder="Tell about yourself you have 1000 characters" maxlength="1000"
                   [(ngModel)]="proposalForBecomeMemberDescription"></textarea>
       </mat-form-field>
     </p>
     <button mat-raised-button
             (click)="sendProposalForBecomeMember()"
-            color="primary">Послать</button>
+            color="primary">Send
+    </button>
   </div>
   <ul>
     <li class="itemList"
         *ngFor="let item of wallet.proposalList">
-      <button mat-fab
-              *ngIf="wallet.isAuthenticated()"
-              [disabled]="catVote()">
-        <mat-icon>thumb_down</mat-icon>
-      </button>
-
-      {{item.title}} ({{item.author}})
-      <button mat-fab color="primary"
-              *ngIf="wallet.isAuthenticated()"
-              [disabled]="catVote()">
-        <mat-icon>thumb_up</mat-icon>
-      </button>
+      <b>{{item.status}}</b>
+      {{item.title}} ({{item.author}})  {{item.description}}
+     <div *ngIf="wallet.isAuthenticated() && item.status === 'Vote'">
+       <button mat-stroked-button
+               (click)="wallet.voteReject(item.id)"
+               color="primary">accept
+       </button>
+       <button mat-stroked-button
+               (click)="wallet.voteApprove(item.id)"
+               color="accent">reject
+       </button>
+     </div>
 
     </li>
   </ul>
 
   <!-- Next Steps -->
-  <h2>Это DApp</h2>
-  <p>Взаимодействуя с контрактом напрямую</p>
+  <h2>DApp via near-cli</h2>
+  <p>Direct interaction with the contract</p>
 
   <input type="hidden" #selection>
 
@@ -431,28 +433,28 @@
       <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
       </svg>
-      <span>Список участников</span>
+      <span>Members</span>
     </button>
 
     <button class="card card-small" (click)="selection.value = 'proposal_list'" tabindex="0">
       <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
       </svg>
-      <span>Список предложений</span>
+      <span>Proposal</span>
     </button>
 
-    <button class="card card-small" (click)="selection.value = 'pwa'" tabindex="0">
+    <button class="card card-small" (click)="selection.value = 'add_member_proposal'" tabindex="0">
       <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
       </svg>
-      <span>Запрос на членство</span>
+      <span>Membership request</span>
     </button>
 
-    <button class="card card-small" (click)="selection.value = 'build'" tabindex="0">
+    <button class="card card-small" (click)="selection.value = 'vote'" tabindex="0">
       <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
       </svg>
-      <span>action4</span>
+      <span>Vote</span>
     </button>
   </div>
 
@@ -460,8 +462,14 @@
   <div class="terminal" [ngSwitch]="selection.value">
     <pre *ngSwitchDefault>npx near view {{wallet.contractName}} member_list</pre>
     <pre *ngSwitchCase="'proposal_list'">npx near view {{wallet.contractName}} proposal_list</pre>
-    <pre *ngSwitchCase="'pwa'">npx near call {{wallet.contractName}} add_member_proposal {{'\n'}} '{{sample()}}' --deposit 0.005</pre>
-    <pre *ngSwitchCase="'dependency'">npx near call {{wallet.contractName}} action4</pre>
+    <pre *ngSwitchCase="'add_member_proposal'">npx near login{{'\n'}}npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+   call {{wallet.contractName}} add_member_proposal \
+   '{{sampleMemberProposal()}}' --deposit 0.006</pre>
+    <pre *ngSwitchCase="'vote'">npx near login{{'\n'}}npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+   call {{wallet.contractName}} vote_approve \
+   '{{sampleVote()}}'{{'\n'}}npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+   call {{wallet.contractName}} vote_reject \
+   '{{sampleVote()}}'</pre>
   </div>
   <!-- Footer -->
   <footer>
