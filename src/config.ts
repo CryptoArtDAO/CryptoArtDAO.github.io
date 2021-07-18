@@ -13,9 +13,9 @@ interface NetworkConfig {
 
 function getConfig(env: string): NetworkConfig {
   switch (env) {
+    case 'production':
+    case 'mainnet':
     // INFO temporary off for fix github pages
-    // case 'production':
-    // case 'mainnet':
     //   return {
     //     networkId: 'mainnet',
     //     nodeUrl: 'https://rpc.mainnet.near.org',
