@@ -23,7 +23,7 @@
     "ng": "ng",
     "start": "ng serve",
     "start:public": "ng serve --disable-host-check",
-    "build": "ng build",
+    "build": "ng build --base-href=/",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
