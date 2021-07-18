@@ -37,13 +37,5 @@ yarn contract-qa
 yarn contract-build
 near deploy cryptoartdao.testnet build/society-minified.wasm init '{}'
 echo 'export default "cryptoartdao.testnet"' > src/contract-name.ts
-yarn build --output-path dist --base-href / --deploy-url https://cryptoartdao.github.io
-cd dist
-git init && git add . && git commit -m '1.0.0-beta.0' 
-git remote add origin git@github.com:CryptoArtDAO/CryptoArtDAO.github.io.git
-git branch -m gh-pages && git push origin +gh-pages
-mkdir -p dist && cd $_
-yarn build --output-path public --base-href / --deploy-url https://cryptoartdao.gitlab.io
-git remote add origin git@gitlab.com:cryptoartdao/cryptoartdao.gitlab.io.git
-git branch -m main && git push origin +main
+yarn deploy:app
 ```
