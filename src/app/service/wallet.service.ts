@@ -84,13 +84,11 @@ export class WalletService {
         'vote_reject',
       ],
     })
-    this.isMember = await this.contract.is_member({
-      account_id: this.accountId
-    })
     await this.update()
   }
 
   async update(): Promise<void> {
+    this.isMember = await this.updateStatusMember(this.accountId)
     await this.updateBalance()
     await this.updateMemberList()
     await this.updateProposalList()
@@ -113,11 +111,10 @@ export class WalletService {
           proposal: await proposal
         }
         out.canVote = false
-        // if (this.accountId) {
-        //   const catVote = await this.contract.can_vote(proposal.id, this.accountId)
-        //   const isMember = await this.contract.is_member(this.accountId)
-        //   out.canVote = catVote && isMember
-        // }
+        if (this.accountId) {
+          const catVote = await this.canVote(proposal.id, this.accountId)
+          out.canVote = catVote && this.isMember
+        }
         return out
       })
     )
@@ -140,6 +137,23 @@ export class WalletService {
       },
       '300000000000000',
       '0',
+    )
+  }
+
+  async updateStatusMember(account_id: string): Promise<boolean> {
+    return await this.contract.is_member(
+      {
+        account_id,
+      }
+    )
+  }
+
+  async canVote(proposal_id: number, account_id: string): Promise<boolean> {
+    return await this.contract.can_vote(
+      {
+        proposal_id,
+        account_id,
+      }
     )
   }
 
