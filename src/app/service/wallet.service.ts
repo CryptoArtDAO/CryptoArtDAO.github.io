@@ -28,8 +28,8 @@ interface Society extends Contract {
   balance(): Promise<string>
   member_list(): Promise<string[]>
   proposal_list(): Promise<Proposal[]>
-  is_member(account_id: string): Promise<boolean>
-  can_vote(proposal_id: number, account_id: string): Promise<boolean>
+  is_member(param: Object): Promise<boolean>
+  can_vote(param: Object): Promise<boolean>
   add_member_proposal(param: Object, gas: string, amount: string): Promise<number>
   vote_reject(param: Object, gas: string, amount: string): Promise<void>
   vote_approve(param: Object, gas: string, amount: string): Promise<void>
@@ -84,7 +84,9 @@ export class WalletService {
         'vote_reject',
       ],
     })
-    this.isMember = await this.contract.is_member(this.accountId)
+    this.isMember = await this.contract.is_member({
+      account_id: this.accountId
+    })
     await this.update()
   }
 
@@ -111,11 +113,11 @@ export class WalletService {
           proposal: await proposal
         }
         out.canVote = false
-        if (this.accountId) {
-          const catVote = await this.contract.can_vote(proposal.id, this.accountId)
-          const isMember = await this.contract.is_member(this.accountId)
-          out.canVote = catVote && isMember
-        }
+        // if (this.accountId) {
+        //   const catVote = await this.contract.can_vote(proposal.id, this.accountId)
+        //   const isMember = await this.contract.is_member(this.accountId)
+        //   out.canVote = catVote && isMember
+        // }
         return out
       })
     )

@@ -20,9 +20,10 @@ near view $contractId proposal_list
 near view $contractId can_vote '{"proposal_id":0,"account_id": "dev-1626575883917-97357653463081"}'
 near --masterAccount $contractId create-account "foo.$contractId" --initialBalance 10
 near --accountId "foo.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}' --deposit 0.006
-near --accountId $contractId call $contractId vote '{"proposal_id":1, "resolve":true}'
 near --accountId $contractId call $contractId vote_approve '{"proposal_id":0}'
 near --masterAccount $contractId create-account "bar.$contractId" --initialBalance 10
 near --accountId "bar.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}' --deposit 0.006
+near --accountId $contractId call $contractId vote_approve '{"proposal_id":1}'
+near --accountId "foo.$contractId" call $contractId vote_approve '{"proposal_id":1}'
 near --accountId $contractId call $contractId vote_reject '{"proposal_id":0}'
 ```
