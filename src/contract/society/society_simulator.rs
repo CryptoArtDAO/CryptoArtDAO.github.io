@@ -38,8 +38,6 @@ pub fn args(data: Value) -> Vec<u8> {
     json!(data).to_string().into_bytes()
 }
 
-use crate::Proposal;
-use near_sdk::serde::de::DeserializeOwned;
 use near_sdk::Balance;
 
 pub fn call(
@@ -76,7 +74,7 @@ pub fn deploy() -> (UserAccount, Vec<UserAccount>) {
 
 pub fn init() -> (UserAccount, Vec<UserAccount>) {
     let root = init_simulator(None);
-    let mut list = vec![
+    let list = vec![
         root.create_user(account_id("alice"), to_yocto("100")),
         root.create_user(account_id("bob"), to_yocto("100")),
         root.create_user(account_id("carol"), to_yocto("100")),

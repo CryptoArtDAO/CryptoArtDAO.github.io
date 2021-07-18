@@ -406,15 +406,15 @@
   <ul>
     <li class="itemList"
         *ngFor="let item of wallet.proposalList">
-      <b>{{item.status}}</b>
-      {{item.title}} ({{item.author}})  {{item.description}}
-     <div *ngIf="wallet.isAuthenticated() && item.status === 'Vote'">
+      <b>{{item.proposal.status}}</b>
+      {{item.proposal.title}} ({{item.proposal.author}})  {{item.proposal.description}}
+     <div *ngIf="item.canVote && item.proposal.status === 'Vote'">
        <button mat-stroked-button
-               (click)="wallet.voteReject(item.id)"
+               (click)="wallet.voteReject(item.proposal.id)"
                color="primary">accept
        </button>
        <button mat-stroked-button
-               (click)="wallet.voteApprove(item.id)"
+               (click)="wallet.voteApprove(item.proposal.id)"
                color="accent">reject
        </button>
      </div>

@@ -29,7 +29,7 @@ interface Society extends Contract {
   member_list(): Promise<string[]>
   proposal_list(): Promise<Proposal[]>
   is_member(account_id: string): Promise<boolean>
-  cat_vote(proposal_id: number, account_id: string): Promise<boolean>
+  can_vote(proposal_id: number, account_id: string): Promise<boolean>
   add_member_proposal(param: Object, gas: string, amount: string): Promise<number>
   vote_reject(param: Object, gas: string, amount: string): Promise<void>
   vote_approve(param: Object, gas: string, amount: string): Promise<void>
@@ -45,8 +45,7 @@ export class WalletService {
   accountId: string
   balance: number = 0
   memberList: string[]  = []
-  proposalList: Proposal[] = []
-  proposalOfAccountList: ProposalOfAccount[] = []
+  proposalList: ProposalOfAccount[] = []
   isMember: boolean = false
 
   // constructor(@Inject(WINDOW) private window: Window) {
@@ -77,7 +76,7 @@ export class WalletService {
         'member_list',
         'proposal_list',
         'is_member',
-        'cat_vote',
+        'can_vote',
       ],
       changeMethods: [
         'add_member_proposal',
@@ -85,7 +84,7 @@ export class WalletService {
         'vote_reject',
       ],
     })
-    //this.isMember = await this.contract.is_member(this.accountId)
+    this.isMember = await this.contract.is_member(this.accountId)
     await this.update()
   }
 
@@ -104,14 +103,19 @@ export class WalletService {
   }
 
   async updateProposalList(): Promise<void> {
-    this.proposalList = await this.contract.proposal_list()
+    // FIXME it need refactor
     const list = await this.contract.proposal_list()
-    this.proposalOfAccountList = await Promise.all(
+    this.proposalList = await Promise.all(
       list.map(async (proposal) => {
         const out = <ProposalOfAccount>{
-          proposal
+          proposal: await proposal
         }
-        out.canVote = this.accountId ? await this.contract.cat_vote(proposal.id, this.accountId) : false
+        out.canVote = false
+        if (this.accountId) {
+          const catVote = await this.contract.can_vote(proposal.id, this.accountId)
+          const isMember = await this.contract.is_member(this.accountId)
+          out.canVote = catVote && isMember
+        }
         return out
       })
     )

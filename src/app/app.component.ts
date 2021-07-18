@@ -1,6 +1,5 @@
 import {
   Component,
-  OnInit,
 } from '@angular/core';
 import {
   WalletService,
@@ -12,7 +11,7 @@ import {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.sass']
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   title = 'CryptoArt DAO';
   formProposalForBecomeMember = false
   proposalForBecomeMemberTitle = ''
@@ -50,11 +49,10 @@ export class AppComponent implements OnInit {
   }
 
   hasAddProposalForBecomeMember(): boolean {
-    return this.wallet.proposalList.filter((it) => it.author === this.wallet.accountId).length > 0
-  }
-
-  async ngOnInit(): Promise<void> {
-    console.log(this.wallet)
+    return this.wallet.proposalList.filter((it) => {
+      console.log(it)
+      return it.proposal.author === this.wallet.accountId
+    }).length > 0
   }
 
   titleFull(): string {

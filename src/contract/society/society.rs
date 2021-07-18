@@ -62,6 +62,20 @@ pub struct ProposalVote {
     reject: u64,
 }
 
+impl ProposalVote {
+    pub fn is_approve(&self) -> bool {
+        self.approve > self.reject
+    }
+
+    pub fn is_parte(&self) -> bool {
+        self.approve == self.reject
+    }
+
+    pub fn is_reject(&self) -> bool {
+        self.approve < self.reject
+    }
+}
+
 #[derive(Serialize)]
 pub struct Proposal {
     id: u64,
@@ -112,23 +126,28 @@ impl ProposalState {
         self.status == ProposalStatus::Accepted
     }
 
-    fn vote(&mut self, resolve: bool, vote_total: u64, target: u64) {
+    fn vote(&mut self, resolve: bool, vote_total: u64, balance: u64) {
         if resolve {
             self.vote.approve += 1;
         } else {
             self.vote.reject += 1;
         }
-        self.calc(vote_total / target + 1, vote_total);
+        let target = if vote_total <= 3 {
+            vote_total / balance
+        } else {
+            vote_total / balance + 1
+        };
+        self.calc(target, vote_total);
     }
 
     fn calc(&mut self, target: u64, total: u64) {
         if self.sum() <= target {
             return;
         }
-        if self.vote.approve > self.vote.reject {
+        if self.vote.is_approve() {
             self.status = ProposalStatus::Accepted;
-        } else if self.vote.approve < self.vote.reject {
-            self.status = ProposalStatus::Accepted;
+        } else if self.vote.is_reject() {
+            self.status = ProposalStatus::Rejected;
         } else if self.sum() == total {
             self.status = ProposalStatus::Draft;
             self.vote.reject = 0;
@@ -198,7 +217,7 @@ impl Society {
         self.member_list.len()
     }
 
-    pub fn cat_vote(self, proposal_id: u64, account_id: AccountId) -> bool {
+    pub fn can_vote(self, proposal_id: u64, account_id: AccountId) -> bool {
         match self.vote_list.get(&proposal_id) {
             Some(vote_list) => !vote_list.contains(&account_id),
             None => true,

@@ -17,7 +17,7 @@ near state $contractId
 near view $contractId balance
 near view $contractId member_list
 near view $contractId proposal_list
-near view $contractId can_vote '{"proposal_id":0,"account_id": "dev-1626564038073-42420096352339"}'
+near view $contractId can_vote '{"proposal_id":0,"account_id": "dev-1626575883917-97357653463081"}'
 near --masterAccount $contractId create-account "foo.$contractId" --initialBalance 10
 near --accountId "foo.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}' --deposit 0.006
 near --accountId $contractId call $contractId vote '{"proposal_id":1, "resolve":true}'
