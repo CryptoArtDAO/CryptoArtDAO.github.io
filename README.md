@@ -15,7 +15,6 @@ yarn start
 ```shell
 npx near login
 contractId=$(cat neardev/dev-account)
-contractId=cryptoartdao.testnet
 near state $contractId
 near view $contractId balance
 near view $contractId member_list
@@ -33,9 +32,17 @@ near --accountId $contractId call $contractId vote_reject '{"proposal_id":0}'
 
 ## Deploy
 ```shell
+contractId=cryptoartdao.testnet
+near state $contractId
+# QA
 yarn contract-qa
-yarn contract-build
-near deploy cryptoartdao.testnet build/society-minified.wasm init '{}'
-echo 'export default "cryptoartdao.testnet"' > src/contract-name.ts
+# Send found if need
+near send $NEAR_DEV_ACCOUNT $contractId 1000
+# Deploy contract
+yarn contract-build && near deploy $contractId build/society-minified.wasm init '{}'
+# or Migrate contract
+yarn contract-build && near deploy $contractId build/society-minified.wasm migrate '{}'
+# Deploy app
+echo "export default "$contractId'" > src/contract-name.ts
 yarn deploy:app
 ```

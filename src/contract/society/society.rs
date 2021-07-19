@@ -181,13 +181,45 @@ impl Society {
     #[init]
     pub fn init() -> Self {
         assert!(!env::state_exists(), "Already initialized");
-        let mut contract = Self {
+        let mut contract = Self::new();
+        contract.setup();
+        contract
+    }
+
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        assert!(Self::is_self(), "Private function");
+        assert!(env::state_exists(), "State doesn't exist");
+        let mut state: Society = env::state_read().expect("State doesn't exist");
+        env::log(b"clearing");
+        env::log(format!("current.proposal_list.len()={}", state.proposal_list.len()).as_bytes());
+        for i in 0..state.proposal_list.len() {
+            env::log(format!("vote_list.remove({})", &i).as_bytes());
+            state.vote_list.remove(&i);
+        }
+        env::log(format!("proposal_list.clear() - {}", state.proposal_list.len()).as_bytes());
+        state.proposal_list.clear();
+        env::log(format!("member_list.clear() - {}", state.member_list.len()).as_bytes());
+        state.member_list.clear();
+        let mut contract = Self::new();
+        contract.setup();
+        contract
+    }
+
+    fn is_self() -> bool {
+        env::predecessor_account_id() == env::current_account_id()
+    }
+
+    fn setup(&mut self) {
+        self.add_member(env::signer_account_id());
+    }
+
+    fn new() -> Self {
+        Self {
             member_list: UnorderedSet::new(StorageKey::MemberList),
             proposal_list: Vector::new(StorageKey::ProposalList),
             vote_list: LookupMap::new(StorageKey::VoteList),
-        };
-        contract.add_member(env::signer_account_id());
-        contract
+        }
     }
 
     fn account_locked_for_storage(self) -> u128 {
