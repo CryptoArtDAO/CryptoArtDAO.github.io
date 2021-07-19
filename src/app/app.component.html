@@ -378,7 +378,7 @@
   <h2>Proposal</h2>
   <button mat-raised-button color="primary"
           (click)="addProposalForBecomeMember()"
-          *ngIf="!hasAddProposalForBecomeMember()"
+          *ngIf="!wallet.isMember && !hasAddProposalForBecomeMember()"
           [disabled]="catAddProposalForBecomeMember()">
     <mat-icon>group_add</mat-icon>
     I want to become an official member
