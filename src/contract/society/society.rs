@@ -4,21 +4,23 @@ use near_sdk::collections::{LookupMap, UnorderedSet};
 use near_sdk::env;
 use near_sdk::json_types::U128;
 use near_sdk::near_bindgen;
+use near_sdk::serde::Deserialize;
+use near_sdk::serde::Serialize;
 use near_sdk::AccountId;
 use near_sdk::Balance;
 use near_sdk::BorshStorageKey;
 use near_sdk::CryptoHash;
 use near_sdk::PanicOnDefault;
 use near_sdk::Promise;
-use serde::Serialize;
 
 near_sdk::setup_alloc!();
 
-const VOTE_TARGET: u64 = 2; // 51% (x / 2 + 1)
-const MINT_STORAGE_COST: u128 = 5100000000000000000000; // 0.0051
-pub const PERMILLE_EXP: usize = 100000;
-pub fn percentage(amount: u128, permille: u128) -> u128 {
-    amount * permille / PERMILLE_EXP as u128
+const VOTE_TARGET: f64 = 0.50; // 50%
+const MINT_STORAGE_COST: u128 = 14000000000000000000000; // 0.014 NEAR
+
+fn consensus(max: u64, quorum: u64) -> bool {
+    let target = (max as f64 * VOTE_TARGET).floor() as u64 + 1;
+    quorum >= target
 }
 
 pub fn refund_deposit(storage_used: u64) {
@@ -43,12 +45,14 @@ pub fn hash(data: String) -> CryptoHash {
     hash
 }
 
-#[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize)]
+#[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     MemberRequest,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize, Deserialize, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
 pub enum ProposalStatus {
     Draft,
     Vote,
@@ -56,7 +60,8 @@ pub enum ProposalStatus {
     Rejected,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct ProposalVote {
     approve: u64,
     reject: u64,
@@ -76,7 +81,8 @@ impl ProposalVote {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     id: u64,
     title: String,
@@ -88,6 +94,7 @@ pub struct Proposal {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct ProposalState {
     title: String,
     kind: ProposalKind,
@@ -126,36 +133,35 @@ impl ProposalState {
         self.status == ProposalStatus::Accepted
     }
 
-    fn vote(&mut self, resolve: bool, vote_total: u64, balance: u64) {
+    fn vote(&mut self, resolve: bool, max: u64) {
         if resolve {
             self.vote.approve += 1;
         } else {
             self.vote.reject += 1;
         }
-        let target = if vote_total <= 3 {
-            vote_total / balance
-        } else {
-            vote_total / balance + 1
-        };
-        self.calc(target, vote_total);
+        self.calc(max);
     }
 
-    fn calc(&mut self, target: u64, total: u64) {
-        if self.sum() <= target {
+    fn calc(&mut self, total: u64) {
+        if !self.consensus(total) {
             return;
         }
         if self.vote.is_approve() {
             self.status = ProposalStatus::Accepted;
         } else if self.vote.is_reject() {
             self.status = ProposalStatus::Rejected;
-        } else if self.sum() == total {
+        } else if self.quorum() == total {
             self.status = ProposalStatus::Draft;
             self.vote.reject = 0;
             self.vote.approve = 0;
         }
     }
 
-    fn sum(&self) -> u64 {
+    fn consensus(&self, max: u64) -> bool {
+        consensus(max, self.quorum())
+    }
+
+    fn quorum(&self) -> u64 {
         self.vote.approve + self.vote.reject
     }
 }
@@ -239,9 +245,7 @@ impl Society {
     }
 
     fn add_member(&mut self, account_id: AccountId) -> bool {
-        if self.member_list.contains(&account_id) {
-            env::panic(b"Member exist")
-        }
+        self.assert_is_member(account_id.clone());
         self.member_list.insert(&account_id)
     }
 
@@ -283,7 +287,7 @@ impl Society {
         if vote_list.contains(&signer_account_id) {
             env::panic(b"You are already voted")
         }
-        proposal.vote(resolve, self.vote_total(), VOTE_TARGET);
+        proposal.vote(resolve, self.vote_total());
         if proposal.is_draft() {
             vote_list = UnorderedSet::new(StorageKey::ProposalVote {
                 hash: hash(format!("{}{}", proposal_id, proposal.author)),
@@ -309,9 +313,7 @@ impl Society {
         }
         let initial_storage_usage = env::storage_usage();
         let signer_account_id = env::signer_account_id();
-        if self.member_list.contains(&signer_account_id) {
-            env::panic(b"Member exist")
-        }
+        self.assert_is_member(signer_account_id.clone());
         let proposal_id = self.add_proposal(
             signer_account_id,
             ProposalKind::MemberRequest,
@@ -321,6 +323,12 @@ impl Society {
         );
         refund_deposit(env::storage_usage() - initial_storage_usage);
         proposal_id
+    }
+
+    fn assert_is_member(&mut self, account_id: AccountId) {
+        if self.member_list.contains(&account_id) {
+            env::panic(format!("Account {} already is member", account_id).as_bytes())
+        }
     }
 
     fn add_proposal(
@@ -410,6 +418,23 @@ mod unit {
     }
 
     #[test]
+    fn consensus_cases() {
+        assert!(consensus(1, 1));
+        assert_eq!(!consensus(2, 1), consensus(2, 2));
+        assert_eq!(!consensus(3, 1), consensus(3, 2));
+        assert_eq!(!consensus(4, 2), consensus(4, 3));
+        assert_eq!(!consensus(5, 2), consensus(5, 3));
+        assert_eq!(!consensus(6, 3), consensus(6, 4));
+        assert_eq!(!consensus(7, 3), consensus(7, 4));
+        assert_eq!(!consensus(8, 4), consensus(8, 5));
+        assert_eq!(!consensus(9, 4), consensus(9, 5));
+        assert_eq!(!consensus(10, 5), consensus(10, 6));
+        assert_eq!(!consensus(11, 5), consensus(11, 6));
+        assert_eq!(!consensus(12, 6), consensus(12, 7));
+        assert_eq!(!consensus(13, 6), consensus(13, 7));
+    }
+
+    #[test]
     fn balance() {
         let context = new_context(accounts(1));
         testing_env!(context.build());
@@ -453,7 +478,7 @@ mod unit {
     }
 
     #[test]
-    #[should_panic(expected = "Member exist")]
+    #[should_panic(expected = "Account bob already is member")]
     fn add_member_proposal_for_exist() {
         let mut context = new_context(accounts(1));
         testing_env!(context.attached_deposit(MINT_STORAGE_COST).build());
@@ -472,7 +497,7 @@ mod unit {
             .build());
         assert_eq!(
             0,
-            contract.add_member_proposal(Some("a".repeat(170)), Some("a".repeat(170)))
+            contract.add_member_proposal(Some("a".repeat(170)), Some("a".repeat(1000)))
         );
         assert_eq!(1, contract.proposal_list(None, None).len());
     }

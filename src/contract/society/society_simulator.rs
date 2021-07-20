@@ -1,6 +1,165 @@
 #[test]
 fn vote() {
+    let (contract, list) = create_member_proposal_for_all();
+    let actual: Vec<Proposal> = contract
+        .view(contract.account_id(), "proposal_list", &args(json!({})))
+        .unwrap_json();
+    assert_eq!(list.len(), actual.len());
+    // 1st member added on deploy contract
+    assert_eq!(1, member_total(&contract));
+
+    // 1 exist members for 2nd member need 1 approve
+    let proposal_id = 0;
+    call_vote_approve(&contract, &contract, proposal_id);
+    assert_eq!(2, member_total(&contract));
+
+    // 2 exist members for 3rd member need 2 approve
+    let proposal_id = 1;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    assert_eq!(3, member_total(&contract));
+
+    // 3 exist members for 4th member need 2 approve
+    let proposal_id = 2;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    assert_eq!(4, member_total(&contract));
+
+    // 4 exist members for 5th member need 3 approve
+    let proposal_id = 3;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    assert_eq!(5, member_total(&contract));
+
+    // 5 exist members for 6th member need 3 approve
+    let proposal_id = 4;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    assert_eq!(6, member_total(&contract));
+
+    // 6 exist members for 7th member need 4 approve
+    let proposal_id = 5;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    assert_eq!(7, member_total(&contract));
+
+    // 7 exist members for 8th member need 4 approve
+    let proposal_id = 6;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    assert_eq!(8, member_total(&contract));
+
+    // 8 exist members for 9th member need 5 approve
+    let proposal_id = 7;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    call_vote_approve(&contract, &list[3], proposal_id);
+    assert_eq!(9, member_total(&contract));
+
+    // 9 exist members for 10th member need 5 approve
+    let proposal_id = 8;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    call_vote_approve(&contract, &list[3], proposal_id);
+    assert_eq!(10, member_total(&contract));
+
+    // 10 exist members for 11th member need 6 approve
+    let proposal_id = 9;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    call_vote_approve(&contract, &list[3], proposal_id);
+    call_vote_approve(&contract, &list[4], proposal_id);
+    assert_eq!(11, member_total(&contract));
+
+    // 11 exist members for 12th member need 6 approve
+    let proposal_id = 10;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    call_vote_approve(&contract, &list[3], proposal_id);
+    call_vote_approve(&contract, &list[4], proposal_id);
+    assert_eq!(12, member_total(&contract));
+
+    // 12 exist members for 13th member need 7 approve
+    let proposal_id = 11;
+    call_vote_approve(&contract, &contract, proposal_id);
+    call_vote_approve(&contract, &list[0], proposal_id);
+    call_vote_approve(&contract, &list[1], proposal_id);
+    call_vote_approve(&contract, &list[2], proposal_id);
+    call_vote_approve(&contract, &list[3], proposal_id);
+    call_vote_approve(&contract, &list[4], proposal_id);
+    call_vote_approve(&contract, &list[6], proposal_id);
+    assert_eq!(13, member_total(&contract));
+}
+
+fn member_total(contract: &UserAccount) -> usize {
+    let actual: Vec<AccountId> = contract
+        .view(contract.account_id(), "member_list", &args(json!({})))
+        .unwrap_json();
+    actual.len()
+}
+
+fn call_vote_approve(contract: &UserAccount, signer: &UserAccount, proposal_id: u64) {
+    let result = call(
+        &contract,
+        &signer,
+        "vote_approve",
+        json!({
+            "proposal_id": proposal_id,
+        }),
+        0, // deposit
+    );
+    assert_eq!(
+        0,
+        result.promise_errors().len(),
+        "got error: {:#?}",
+        result.promise_errors()
+    );
+}
+
+fn create_member_proposal_for_all() -> (UserAccount, Vec<UserAccount>) {
     let (contract, list) = deploy();
+    for user in list.iter().as_ref() {
+        let result = call(
+            &contract,
+            user,
+            "add_member_proposal",
+            json!({
+                "title": "a".repeat(170),
+                "description": "a".repeat(1000),
+            }),
+            MINT_STORAGE_COST, // deposit
+        );
+        assert_eq!(
+            0,
+            result.promise_errors().len(),
+            "got error: {:#?}",
+            result.promise_errors()
+        );
+    }
+    (contract, list)
+}
+
+#[test]
+fn add_member_proposal() {
+    let (contract, list) = deploy();
+    let actual: Vec<Proposal> = contract
+        .view(contract.account_id(), "proposal_list", &args(json!({})))
+        .unwrap_json();
+    assert_eq!(0, actual.len());
     let result = call(
         &contract,
         &list[0],
@@ -9,14 +168,13 @@ fn vote() {
             "title": "a".repeat(170),
             "description": "a".repeat(1000),
         }),
-        to_yocto("0.01254"), // deposit
+        MINT_STORAGE_COST, // deposit
     );
-    assert_burnt_gas("deploy_1", &result, "7.5", None);
-    let actual: Vec<AccountId> = contract
-        .view(contract.account_id(), "member_list", &args(json!({})))
+    assert_burnt_gas("add_member_proposal_1", &result, "4", None);
+    let actual: Vec<Proposal> = contract
+        .view(contract.account_id(), "proposal_list", &args(json!({})))
         .unwrap_json();
     assert_eq!(1, actual.len());
-    // TODO simulate voting flow
 }
 
 use near_sdk::serde_json::json;
@@ -38,6 +196,7 @@ pub fn args(data: Value) -> Vec<u8> {
     json!(data).to_string().into_bytes()
 }
 
+use crate::{Proposal, MINT_STORAGE_COST};
 use near_sdk::Balance;
 
 pub fn call(
@@ -78,6 +237,16 @@ pub fn init() -> (UserAccount, Vec<UserAccount>) {
         root.create_user(account_id("alice"), to_yocto("100")),
         root.create_user(account_id("bob"), to_yocto("100")),
         root.create_user(account_id("carol"), to_yocto("100")),
+        root.create_user(account_id("chuck"), to_yocto("100")),
+        root.create_user(account_id("craig"), to_yocto("100")),
+        root.create_user(account_id("dave"), to_yocto("100")),
+        root.create_user(account_id("eve"), to_yocto("100")),
+        root.create_user(account_id("mallory"), to_yocto("100")),
+        root.create_user(account_id("peggy"), to_yocto("100")),
+        root.create_user(account_id("trent"), to_yocto("100")),
+        root.create_user(account_id("walter"), to_yocto("100")),
+        root.create_user(account_id("arthur"), to_yocto("100")),
+        root.create_user(account_id("paul"), to_yocto("100")),
     ];
     (root, list)
 }

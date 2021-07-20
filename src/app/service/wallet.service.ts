@@ -9,6 +9,7 @@ interface ProposalVote {
   approve: number
   reject: number
 }
+
 interface Proposal {
   id: number
   title: string
@@ -26,12 +27,19 @@ interface ProposalOfAccount {
 
 interface Society extends Contract {
   balance(): Promise<string>
+
   member_list(): Promise<string[]>
+
   proposal_list(): Promise<Proposal[]>
+
   is_member(param: Object): Promise<boolean>
+
   can_vote(param: Object): Promise<boolean>
+
   add_member_proposal(param: Object, gas: string, amount: string): Promise<number>
+
   vote_reject(param: Object, gas: string, amount: string): Promise<void>
+
   vote_approve(param: Object, gas: string, amount: string): Promise<void>
 }
 
@@ -44,7 +52,7 @@ export class WalletService {
   contract: Society
   accountId: string
   balance: number = 0
-  memberList: string[]  = []
+  memberList: string[] = []
   proposalList: ProposalOfAccount[] = []
   isMember: boolean = false
 
@@ -163,8 +171,8 @@ export class WalletService {
         title,
         description,
       },
-      '300000000000000',
-      '6000000000000000000000',
+      '5000000000000', // 5 TGas
+      '14000000000000000000000', // 0.014 NEAR
     )
   }
 
