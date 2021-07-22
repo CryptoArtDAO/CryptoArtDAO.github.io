@@ -43,6 +43,6 @@ yarn contract-build && near deploy $contractId build/society-minified.wasm init 
 # or Migrate contract
 yarn contract-build && near deploy $contractId build/society-minified.wasm migrate '{}'
 # Deploy app
-echo "export default "$contractId'" > src/contract-name.ts
+echo "export default '$contractId'" > src/contract-name.ts
 yarn deploy:app
 ```
