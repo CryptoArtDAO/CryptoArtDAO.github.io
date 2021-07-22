@@ -424,7 +424,10 @@
   </ul>
 
   <!-- Next Steps -->
-  <h2 (click)="toggleConsoleHelp()">Optional info for use DApp via near-cli</h2>
+  <button mat-button
+          (click)="toggleConsoleHelp()"
+          color="primary">Optional info for use DApp via near-cli
+  </button>
   <div *ngIf="showConsoleHelp">
     <p>Direct interaction with the contract</p>
 
