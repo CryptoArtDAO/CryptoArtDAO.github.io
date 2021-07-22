@@ -16,6 +16,7 @@ export class AppComponent {
   formProposalForBecomeMember = false
   proposalForBecomeMemberTitle = ''
   proposalForBecomeMemberDescription = ''
+  showConsoleHelp = false
 
   constructor(
     public wallet: WalletService,
@@ -41,6 +42,10 @@ export class AppComponent {
 
   addProposalForBecomeMember(): void {
     this.formProposalForBecomeMember = !this.formProposalForBecomeMember
+  }
+
+  toggleConsoleHelp(): void {
+    this.showConsoleHelp = !this.showConsoleHelp
   }
 
   async sendProposalForBecomeMember() {
