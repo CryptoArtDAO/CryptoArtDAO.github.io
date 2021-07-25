@@ -36,7 +36,7 @@ interface Society extends Contract {
 
   can_vote(param: Object): Promise<boolean>
 
-  add_member_proposal(param: Object, gas: string, amount: string): Promise<number>
+  add_member_proposal(param: Object): Promise<number>
 
   vote_reject(param: Object, gas: string, amount: string): Promise<void>
 
@@ -171,8 +171,6 @@ export class WalletService {
         title,
         description,
       },
-      '5000000000000', // 5 TGas
-      '14000000000000000000000', // 0.014 NEAR
     )
   }
 

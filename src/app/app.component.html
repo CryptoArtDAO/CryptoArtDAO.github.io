@@ -363,8 +363,11 @@
             transform="translate(-147.025 -140.939)" fill="#f5f5f5"/>
     </svg>
   </div>
-  <h2>What is DAO?</h2>
-  <p>Decentralized autonomous organization (DAO) — is a digital organization and a form of investor-directed venture
+  <button mat-button
+          (click)="toggleHelp()"
+          color="primary">What is DAO?
+  </button>
+  <p *ngIf="showHelp">Decentralized autonomous organization (DAO) — is a digital organization and a form of investor-directed venture
     capital fund. The DAO is stateless, and not tied to any particular nation state. DAOs tackle an age-old problem of
     governance, which political scientists and economists refer to as the principal-agent dilemma. <a
       href="https://en.bitcoinwiki.org/wiki/The_DAO">[1]</a><a
@@ -376,7 +379,7 @@
   </ul>
 
   <button mat-raised-button color="primary"
-          (click)="addProposalForBecomeMember()"
+          (click)="toggleProposalForBecomeMember()"
           *ngIf="!wallet.isMember && !hasAddProposalForBecomeMember()"
           [disabled]="catAddProposalForBecomeMember()">
     <mat-icon>group_add</mat-icon>
@@ -386,36 +389,47 @@
     <p>
       <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
         <mat-label>Title</mat-label>
-        <input matInput placeholder="Briefly like on twitter" [(ngModel)]="proposalForBecomeMemberTitle" max="170">
+        <input matInput placeholder="Briefly like on twitter"
+               [disabled]="proposalProcess"
+               [(ngModel)]="proposalForBecomeMemberTitle" max="170">
       </mat-form-field>
     </p>
     <p>
       <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
         <mat-label>Description</mat-label>
         <textarea matInput
+                  [disabled]="proposalProcess"
                   placeholder="Tell about yourself you have 1000 characters" maxlength="1000"
                   [(ngModel)]="proposalForBecomeMemberDescription"></textarea>
       </mat-form-field>
     </p>
     <button mat-raised-button
+            [disabled]="proposalProcess"
+            (click)="toggleProposalForBecomeMember()"
+            color="primary">Cancel
+    </button>
+    <button mat-raised-button
+            [disabled]="proposalProcess"
             (click)="sendProposalForBecomeMember()"
-            color="primary">Send
+            color="accent">Send
     </button>
   </div>
   <h2>Member request for new become member of {{title}}</h2>
   <ul>
     <li class="itemList"
         *ngFor="let item of wallet.proposalList">
-      <p>{{item.proposal.author}} {{item.proposal.title}} {{item.proposal.status}} ({{item.proposal.vote.approve}}
+      <p><b>{{item.proposal.kind}}</b> {{item.proposal.status}} {{item.proposal.author}} {{item.proposal.title}} ({{item.proposal.vote.approve}}
         vs {{item.proposal.vote.reject}})</p>
       <p>{{item.proposal.description}}</p>
       <div *ngIf="item.canVote && item.proposal.status === 'Vote'">
         <button mat-stroked-button
-                (click)="wallet.voteApprove(item.proposal.id)"
+                (click)="voteApprove(item.proposal.id)"
+                [disabled]="voteProcess"
                 color="primary">accept
         </button>
         <button mat-stroked-button
-                (click)="wallet.voteReject(item.proposal.id)"
+                (click)="voteReject(item.proposal.id)"
+                [disabled]="voteProcess"
                 color="accent">reject
         </button>
       </div>
@@ -467,16 +481,15 @@
     <div class="terminal" [ngSwitch]="selection.value">
       <pre *ngSwitchDefault>npx near view {{wallet.contractName}} member_list</pre>
       <pre *ngSwitchCase="'proposal_list'">npx near view {{wallet.contractName}} proposal_list</pre>
-      <pre *ngSwitchCase="'add_member_proposal'">npx near login{{'\n'}}
-        npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+      <pre *ngSwitchCase="'add_member_proposal'">npx near login
+npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
    call {{wallet.contractName}} add_member_proposal \
-   '{{sampleMemberProposal()}}' --deposit 0.006</pre>
-      <pre *ngSwitchCase="'vote'">npx near login{{'\n'}}
-        npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
-   call {{wallet.contractName}} vote_approve \
-   '{{sampleVote()}}'{{'\n'}}npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
-   call {{wallet.contractName}} vote_reject \
-   '{{sampleVote()}}'</pre>
+   '{{sampleMemberProposal()}}'</pre>
+      <pre *ngSwitchCase="'vote'">npx near login
+npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+   call {{wallet.contractName}} vote_approve '{{sampleVote()}}'
+npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+   call {{wallet.contractName}} vote_reject '{{sampleVote()}}'</pre>
     </div>
     <!-- Footer -->
     <footer>

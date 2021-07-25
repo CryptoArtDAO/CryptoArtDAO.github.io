@@ -3,6 +3,7 @@ use near_sdk::collections::Vector;
 use near_sdk::collections::{LookupMap, UnorderedSet};
 use near_sdk::env;
 use near_sdk::json_types::U128;
+use near_sdk::json_types::ValidAccountId;
 use near_sdk::near_bindgen;
 use near_sdk::serde::Deserialize;
 use near_sdk::serde::Serialize;
@@ -16,7 +17,6 @@ use near_sdk::Promise;
 near_sdk::setup_alloc!();
 
 const VOTE_TARGET: f64 = 0.50; // 50%
-const MINT_STORAGE_COST: u128 = 14000000000000000000000; // 0.014 NEAR
 
 fn consensus(max: u64, quorum: u64) -> bool {
     let target = (max as f64 * VOTE_TARGET).floor() as u64 + 1;
@@ -89,6 +89,7 @@ pub struct Proposal {
     kind: ProposalKind,
     status: ProposalStatus,
     description: String,
+    script: Option<String>,
     author: AccountId,
     vote: ProposalVote,
 }
@@ -100,6 +101,7 @@ pub struct ProposalState {
     kind: ProposalKind,
     status: ProposalStatus,
     description: String,
+    script: Option<String>,
     author: AccountId,
     vote: ProposalVote,
 }
@@ -111,12 +113,14 @@ impl ProposalState {
         author: AccountId,
         kind: ProposalKind,
         status: ProposalStatus,
+        script: Option<String>,
     ) -> Self {
         Self {
             title,
             kind,
             status,
             description,
+            script,
             author,
             vote: ProposalVote {
                 approve: 0,
@@ -185,39 +189,15 @@ pub struct Society {
 #[near_bindgen]
 impl Society {
     #[init]
-    pub fn init() -> Self {
+    pub fn init(initial_members: Vec<ValidAccountId>) -> Self {
         assert!(!env::state_exists(), "Already initialized");
+        assert!(
+            !initial_members.is_empty(),
+            "Need minimum one initial member"
+        );
         let mut contract = Self::new();
-        contract.setup();
+        contract.setup(initial_members);
         contract
-    }
-
-    #[init(ignore_state)]
-    pub fn migrate() -> Self {
-        assert!(Self::is_self(), "Private function");
-        assert!(env::state_exists(), "State doesn't exist");
-        let mut state: Society = env::state_read().expect("State doesn't exist");
-        env::log(b"clearing");
-        env::log(format!("current.proposal_list.len()={}", state.proposal_list.len()).as_bytes());
-        for i in 0..state.proposal_list.len() {
-            env::log(format!("vote_list.remove({})", &i).as_bytes());
-            state.vote_list.remove(&i);
-        }
-        env::log(format!("proposal_list.clear() - {}", state.proposal_list.len()).as_bytes());
-        state.proposal_list.clear();
-        env::log(format!("member_list.clear() - {}", state.member_list.len()).as_bytes());
-        state.member_list.clear();
-        let mut contract = Self::new();
-        contract.setup();
-        contract
-    }
-
-    fn is_self() -> bool {
-        env::predecessor_account_id() == env::current_account_id()
-    }
-
-    fn setup(&mut self) {
-        self.add_member(env::signer_account_id());
     }
 
     fn new() -> Self {
@@ -225,6 +205,12 @@ impl Society {
             member_list: UnorderedSet::new(StorageKey::MemberList),
             proposal_list: Vector::new(StorageKey::ProposalList),
             vote_list: LookupMap::new(StorageKey::VoteList),
+        }
+    }
+
+    fn setup(&mut self, initial_members: Vec<ValidAccountId>) {
+        for member in initial_members {
+            self.add_member(member.into());
         }
     }
 
@@ -302,27 +288,21 @@ impl Society {
         self.proposal_list.replace(proposal_id, &proposal);
     }
 
-    #[payable]
     pub fn add_member_proposal(
         &mut self,
         title: Option<String>,
         description: Option<String>,
     ) -> u64 {
-        if env::attached_deposit() < MINT_STORAGE_COST {
-            env::panic(b"Need attach minimum 0.04 NEAR for cover storage")
-        }
-        let initial_storage_usage = env::storage_usage();
         let signer_account_id = env::signer_account_id();
         self.assert_is_member(signer_account_id.clone());
-        let proposal_id = self.add_proposal(
+        self.add_proposal(
             signer_account_id,
             ProposalKind::MemberRequest,
             ProposalStatus::Vote,
             title,
             description,
-        );
-        refund_deposit(env::storage_usage() - initial_storage_usage);
-        proposal_id
+            None,
+        )
     }
 
     fn assert_is_member(&mut self, account_id: AccountId) {
@@ -338,6 +318,7 @@ impl Society {
         status: ProposalStatus,
         title: Option<String>,
         description: Option<String>,
+        script: Option<String>,
     ) -> u64 {
         let title = title.unwrap_or_default();
         if title.len() > 170 {
@@ -353,6 +334,7 @@ impl Society {
             author,
             kind,
             status,
+            script,
         ));
         self.proposal_list.len() - 1
     }
@@ -389,6 +371,7 @@ impl Society {
                 kind: state.kind,
                 status: state.status,
                 description: state.description,
+                script: state.script,
                 author: state.author,
                 vote: state.vote,
             });
@@ -417,6 +400,10 @@ mod unit {
         builder
     }
 
+    pub fn new_contract() -> Society {
+        Society::init(vec![accounts(1)])
+    }
+
     #[test]
     fn consensus_cases() {
         assert!(consensus(1, 1));
@@ -438,7 +425,7 @@ mod unit {
     fn balance() {
         let context = new_context(accounts(1));
         testing_env!(context.build());
-        let contract = Society::init();
+        let contract = new_contract();
         assert_eq!(U128(96926860000000000000000000), contract.balance());
     }
 
@@ -446,7 +433,7 @@ mod unit {
     fn member_list() {
         let context = new_context(accounts(1));
         testing_env!(context.build());
-        let contract = Society::init();
+        let contract = new_contract();
         assert_eq!(
             vec![accounts(1).into()] as Vec<AccountId>,
             contract.member_list(None, None)
@@ -457,7 +444,7 @@ mod unit {
     fn is_member() {
         let context = new_context(accounts(1));
         testing_env!(context.build());
-        let contract = Society::init();
+        let contract = new_contract();
         assert!(contract.is_member(accounts(1).into()));
     }
 
@@ -465,7 +452,7 @@ mod unit {
     fn is_not_member() {
         let context = new_context(accounts(1));
         testing_env!(context.build());
-        let contract = Society::init();
+        let contract = new_contract();
         assert!(!contract.is_member(accounts(2).into()));
     }
 
@@ -473,16 +460,16 @@ mod unit {
     fn proposal_list_empty() {
         let context = new_context(accounts(1));
         testing_env!(context.build());
-        let contract = Society::init();
+        let contract = new_contract();
         assert_eq!(0, contract.proposal_list(None, None).len());
     }
 
     #[test]
     #[should_panic(expected = "Account bob already is member")]
     fn add_member_proposal_for_exist() {
-        let mut context = new_context(accounts(1));
-        testing_env!(context.attached_deposit(MINT_STORAGE_COST).build());
-        let mut contract = Society::init();
+        let context = new_context(accounts(1));
+        testing_env!(context.build());
+        let mut contract = new_contract();
         contract.add_member_proposal(None, None);
     }
 
@@ -490,25 +477,15 @@ mod unit {
     fn add_member_proposal() {
         let mut context = new_context(accounts(1));
         testing_env!(context.build());
-        let mut contract = Society::init();
+        let mut contract = new_contract();
         testing_env!(context
             .signer_account_id(ValidAccountId::try_from("a".repeat(64)).unwrap())
-            .attached_deposit(MINT_STORAGE_COST)
             .build());
         assert_eq!(
             0,
             contract.add_member_proposal(Some("a".repeat(170)), Some("a".repeat(1000)))
         );
         assert_eq!(1, contract.proposal_list(None, None).len());
-    }
-
-    #[test]
-    #[should_panic(expected = "Need attach minimum 0.04 NEAR for cover storage")]
-    fn add_member_proposal_without_cover_storage() {
-        let context = new_context(accounts(1));
-        testing_env!(context.build());
-        let mut contract = Society::init();
-        contract.add_member_proposal(None, None);
     }
 }
 #[cfg(test)]

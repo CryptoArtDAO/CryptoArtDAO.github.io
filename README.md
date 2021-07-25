@@ -4,10 +4,12 @@
 ```shell
 yarn contract-qa
 yarn contract-build
-yarn contract-dev-deploy && contractId=$(cat neardev/dev-account) && near --accountId $contractId call $contractId init
+yarn contract-dev-deploy && contractId=$(cat neardev/dev-account) 
+near --accountId $contractId call $contractId init "{\"initial_members\": [\"$contractId\"]}"
 near delete foo.$(cat neardev/dev-account) $NEAR_DEV_ACCOUNT
 near delete bar.$(cat neardev/dev-account) $NEAR_DEV_ACCOUNT
 near delete $(cat neardev/dev-account) $NEAR_DEV_ACCOUNT && rm -fr neardev
+echo "export default '$contractId'" > src/contract-name.ts
 yarn start
 ```
 
@@ -19,13 +21,13 @@ near state $contractId
 near view $contractId balance
 near view $contractId member_list
 near view $contractId proposal_list
-near view $contractId can_vote '{"proposal_id":0,"account_id": "dev-1626575883917-97357653463081"}'
-near --masterAccount $contractId create-account "foo.$contractId" --initialBalance 10
-near --accountId "foo.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}' --deposit 0.006
+near view $contractId can_vote "{\"proposal_id\":0,\"account_id\": \"$contractId\"}"
 near --accountId $contractId call $contractId vote_approve '{"proposal_id":0}'
-near --masterAccount $contractId create-account "bar.$contractId" --initialBalance 10
-near --accountId "bar.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}' --deposit 0.006
+near --masterAccount $contractId create-account "foo.$contractId" --initialBalance 10
+near --accountId "foo.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}'
 near --accountId $contractId call $contractId vote_approve '{"proposal_id":1}'
+near --masterAccount $contractId create-account "bar.$contractId" --initialBalance 10
+near --accountId "bar.$contractId" call $contractId add_member_proposal '{"title":"foo", "description": "bar"}'
 near --accountId "foo.$contractId" call $contractId vote_approve '{"proposal_id":1}'
 near --accountId $contractId call $contractId vote_reject '{"proposal_id":0}'
 ```
@@ -39,9 +41,8 @@ yarn contract-qa
 # Send found if need
 near send $NEAR_DEV_ACCOUNT $contractId 1000
 # Deploy contract
-yarn contract-build && near deploy $contractId build/society-minified.wasm init '{}'
-# or Migrate contract
-yarn contract-build && near deploy $contractId build/society-minified.wasm migrate '{}'
+yarn contract-build
+near deploy $contractId build/society-minified.wasm init '{"initial_members": ["%near_account_id%"]}'
 # Deploy app
 echo "export default '$contractId'" > src/contract-name.ts
 yarn deploy:app

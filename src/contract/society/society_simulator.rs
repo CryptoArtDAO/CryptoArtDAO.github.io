@@ -141,7 +141,7 @@ fn create_member_proposal_for_all() -> (UserAccount, Vec<UserAccount>) {
                 "title": "a".repeat(170),
                 "description": "a".repeat(1000),
             }),
-            MINT_STORAGE_COST, // deposit
+            0, // deposit
         );
         assert_eq!(
             0,
@@ -168,7 +168,7 @@ fn add_member_proposal() {
             "title": "a".repeat(170),
             "description": "a".repeat(1000),
         }),
-        MINT_STORAGE_COST, // deposit
+        0, // deposit
     );
     assert_burnt_gas("add_member_proposal_1", &result, "4", None);
     let actual: Vec<Proposal> = contract
@@ -196,7 +196,7 @@ pub fn args(data: Value) -> Vec<u8> {
     json!(data).to_string().into_bytes()
 }
 
-use crate::{Proposal, MINT_STORAGE_COST};
+use crate::Proposal;
 use near_sdk::Balance;
 
 pub fn call(
@@ -221,12 +221,20 @@ pub fn deploy() -> (UserAccount, Vec<UserAccount>) {
         CONTRACT_WASM_BYTES => "../../../build/society-minified.wasm",
     }
     let contract = root.deploy(&CONTRACT_WASM_BYTES, account_id("contract"), STORAGE_AMOUNT);
-    contract.call(
+    let result = contract.call(
         contract.account_id(),
         "init",
-        &json!({}).to_string().into_bytes(),
+        &json!({ "initial_members": vec![contract.account_id()] })
+            .to_string()
+            .into_bytes(),
         DEFAULT_GAS,
         0,
+    );
+    assert_eq!(
+        0,
+        result.promise_errors().len(),
+        "got error: {:#?}",
+        result.promise_errors()
     );
     (contract, list)
 }

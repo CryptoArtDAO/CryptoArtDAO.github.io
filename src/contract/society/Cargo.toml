@@ -3,7 +3,7 @@ name = "society"
 description = "CryptoArt DAO"
 homepage = "https://cryptoartdao.github.io/"
 edition = "2018"
-version = "1.0.0-beta.0"
+version = "1.0.0-beta.1"
 license = "UNLICENSED"
 
 [lib]

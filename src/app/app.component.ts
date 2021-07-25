@@ -17,6 +17,9 @@ export class AppComponent {
   proposalForBecomeMemberTitle = ''
   proposalForBecomeMemberDescription = ''
   showConsoleHelp = false
+  showHelp = false
+  voteProcess = false
+  proposalProcess = false
 
   constructor(
     public wallet: WalletService,
@@ -40,7 +43,7 @@ export class AppComponent {
     return !this.wallet.isAuthenticated() || this.hasAddProposalForBecomeMember()
   }
 
-  addProposalForBecomeMember(): void {
+  toggleProposalForBecomeMember(): void {
     this.formProposalForBecomeMember = !this.formProposalForBecomeMember
   }
 
@@ -48,9 +51,30 @@ export class AppComponent {
     this.showConsoleHelp = !this.showConsoleHelp
   }
 
-  async sendProposalForBecomeMember() {
-    await this.wallet.addMemberProposal(this.proposalForBecomeMemberTitle, this.proposalForBecomeMemberDescription)
-    this.formProposalForBecomeMember = false
+  toggleHelp(): void {
+    this.showHelp = !this.showHelp
+  }
+
+  voteApprove(proposal_id: number): void {
+    this.voteProcess = true
+    this.wallet.voteApprove(proposal_id).then(async () => {
+      await this.wallet.update()
+    })
+  }
+
+  voteReject(proposal_id: number): void {
+    this.voteProcess = true
+    this.wallet.voteReject(proposal_id).then(async () => {
+      await this.wallet.update()
+    })
+  }
+
+  sendProposalForBecomeMember(): void {
+    this.proposalProcess = true
+    this.wallet.addMemberProposal(this.proposalForBecomeMemberTitle, this.proposalForBecomeMemberDescription).then(async () => {
+      await this.wallet.update()
+      this.formProposalForBecomeMember = false
+    })
   }
 
   hasAddProposalForBecomeMember(): boolean {
