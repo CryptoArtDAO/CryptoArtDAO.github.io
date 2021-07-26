@@ -2,8 +2,8 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::Vector;
 use near_sdk::collections::{LookupMap, UnorderedSet};
 use near_sdk::env;
-use near_sdk::json_types::U128;
 use near_sdk::json_types::ValidAccountId;
+use near_sdk::json_types::U128;
 use near_sdk::near_bindgen;
 use near_sdk::serde::Deserialize;
 use near_sdk::serde::Serialize;
@@ -13,13 +13,17 @@ use near_sdk::BorshStorageKey;
 use near_sdk::CryptoHash;
 use near_sdk::PanicOnDefault;
 use near_sdk::Promise;
+use std::option::Option;
 
 near_sdk::setup_alloc!();
 
-const VOTE_TARGET: f64 = 0.50; // 50%
+// Param of Protocol contract
+const PARAM_VOTE_TARGET: f64 = 0.50; // 50%
+const PARAM_TIME_LOCK: u64 = 10 * 60 * 1_000_000_000; // 10m in nanoseconds
+const PARAM_FUND_RESERVE: Balance = 10_000_000_000_000_000_000_000_000; // reserve is 10NEAR
 
 fn consensus(max: u64, quorum: u64) -> bool {
-    let target = (max as f64 * VOTE_TARGET).floor() as u64 + 1;
+    let target = (max as f64 * PARAM_VOTE_TARGET).floor() as u64 + 1;
     quorum >= target
 }
 
@@ -45,10 +49,16 @@ pub fn hash(data: String) -> CryptoHash {
     hash
 }
 
-#[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize, Deserialize)]
+#[derive(Deserialize)]
+struct FundScript {
+    fund: U128,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize, Deserialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     MemberRequest,
+    FundRequest,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, BorshStorageKey, Serialize, Deserialize, PartialEq)]
@@ -85,6 +95,7 @@ impl ProposalVote {
 #[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     id: u64,
+    timestamp: u64,
     title: String,
     kind: ProposalKind,
     status: ProposalStatus,
@@ -97,6 +108,7 @@ pub struct Proposal {
 #[derive(BorshSerialize, BorshDeserialize, Serialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ProposalState {
+    timestamp: u64,
     title: String,
     kind: ProposalKind,
     status: ProposalStatus,
@@ -108,14 +120,23 @@ pub struct ProposalState {
 
 impl ProposalState {
     pub fn new(
-        title: String,
-        description: String,
+        title: Option<String>,
+        description: Option<String>,
         author: AccountId,
         kind: ProposalKind,
         status: ProposalStatus,
         script: Option<String>,
     ) -> Self {
+        let title = title.unwrap_or_default();
+        if title.len() > 170 {
+            env::panic(b"Field title mus be less 70 lenght")
+        }
+        let description = description.unwrap_or_default();
+        if description.len() > 1000 {
+            env::panic(b"Field description mus be less 1000 lenght")
+        }
         Self {
+            timestamp: env::block_timestamp(),
             title,
             kind,
             status,
@@ -176,6 +197,7 @@ enum StorageKey {
     ProposalList,
     ProposalVote { hash: CryptoHash },
     VoteList,
+    ActiveProposal,
 }
 
 #[near_bindgen]
@@ -184,6 +206,8 @@ pub struct Society {
     member_list: UnorderedSet<AccountId>,
     proposal_list: Vector<ProposalState>,
     vote_list: LookupMap<u64, UnorderedSet<AccountId>>,
+    active_proposal: LookupMap<AccountId, u64>,
+    fund_proposal: Balance,
 }
 
 #[near_bindgen]
@@ -205,6 +229,8 @@ impl Society {
             member_list: UnorderedSet::new(StorageKey::MemberList),
             proposal_list: Vector::new(StorageKey::ProposalList),
             vote_list: LookupMap::new(StorageKey::VoteList),
+            active_proposal: LookupMap::new(StorageKey::ActiveProposal),
+            fund_proposal: 0,
         }
     }
 
@@ -214,16 +240,20 @@ impl Society {
         }
     }
 
-    fn account_locked_for_storage(self) -> u128 {
+    fn account_locked_for_storage(&self) -> u128 {
         env::storage_byte_cost() * Balance::from(env::storage_usage())
     }
 
-    pub fn balance(self) -> U128 {
-        U128(
-            env::account_balance()
-                - env::account_locked_balance()
-                - self.account_locked_for_storage(),
-        )
+    fn fund(&self) -> Balance {
+        env::account_balance()
+            - env::account_locked_balance()
+            - self.account_locked_for_storage()
+            - PARAM_FUND_RESERVE
+            - self.fund_proposal
+    }
+
+    pub fn balance(&self) -> U128 {
+        U128(self.fund())
     }
 
     pub fn is_member(&self, account_id: AccountId) -> bool {
@@ -277,14 +307,32 @@ impl Society {
         if proposal.is_draft() {
             vote_list = UnorderedSet::new(StorageKey::ProposalVote {
                 hash: hash(format!("{}{}", proposal_id, proposal.author)),
-            })
+            });
+            if proposal.kind == ProposalKind::FundRequest {
+                let script = proposal.script.clone();
+                let fund_script: FundScript =
+                    serde_json::from_str(&script.unwrap_or_else(|| "{}".to_string())).unwrap();
+                let request_fund = u128::from(fund_script.fund);
+                self.fund_proposal -= request_fund;
+            };
         } else {
             vote_list.insert(&signer_account_id);
         }
         self.vote_list.insert(&proposal_id, &vote_list);
         if proposal.is_accepted() {
-            self.add_member(proposal.author.clone());
-        }
+            self.active_proposal.remove(&proposal.author);
+            if proposal.kind == ProposalKind::MemberRequest {
+                self.add_member(proposal.author.clone());
+            };
+            if proposal.kind == ProposalKind::FundRequest {
+                let script = proposal.script.clone();
+                let fund_script: FundScript =
+                    serde_json::from_str(&script.unwrap_or_else(|| "{}".to_string())).unwrap();
+                let request_fund = u128::from(fund_script.fund);
+                self.fund_proposal -= request_fund;
+                Promise::new(proposal.author.clone()).transfer(request_fund);
+            };
+        };
         self.proposal_list.replace(proposal_id, &proposal);
     }
 
@@ -305,6 +353,34 @@ impl Society {
         )
     }
 
+    pub fn add_fund_proposal(&mut self, title: String, description: String, script: String) -> u64 {
+        let signer_account_id = env::signer_account_id();
+        assert!(
+            self.is_member(signer_account_id.clone()),
+            "Only for members"
+        );
+        let fund_script: FundScript = serde_json::from_str(&script).unwrap();
+        let request_fund = u128::from(fund_script.fund);
+        // TODO move into method
+        let curren_fund = env::account_balance()
+            - env::account_locked_balance()
+            - env::storage_byte_cost() * Balance::from(env::storage_usage())
+            - PARAM_FUND_RESERVE
+            - self.fund_proposal;
+        if request_fund >= curren_fund {
+            env::panic(b"The fund does not have so many resources")
+        };
+        self.fund_proposal += request_fund;
+        self.add_proposal(
+            signer_account_id,
+            ProposalKind::FundRequest,
+            ProposalStatus::Vote,
+            Some(title),
+            Some(description),
+            Some(script),
+        )
+    }
+
     fn assert_is_member(&mut self, account_id: AccountId) {
         if self.member_list.contains(&account_id) {
             env::panic(format!("Account {} already is member", account_id).as_bytes())
@@ -320,23 +396,44 @@ impl Society {
         description: Option<String>,
         script: Option<String>,
     ) -> u64 {
-        let title = title.unwrap_or_default();
-        if title.len() > 170 {
-            env::panic(b"Field title mus be less 70 lenght")
+        match self.active_proposal.get(&author) {
+            Some(proposal_id) => {
+                let proposal = match self.proposal_list.get(proposal_id) {
+                    Some(proposal) => proposal,
+                    None => env::panic(format!("Proposal {} not active", proposal_id).as_bytes()),
+                };
+                if proposal.timestamp + PARAM_TIME_LOCK >= env::block_timestamp() {
+                    env::panic(format!("Proposal {} is locked try late", proposal_id).as_bytes())
+                }
+                if proposal.status != ProposalStatus::Draft {
+                    env::panic(
+                        format!(
+                            "You can update the proposal {} only in the draft status",
+                            proposal_id,
+                        )
+                        .as_bytes(),
+                    )
+                }
+                self.proposal_list.replace(
+                    proposal_id,
+                    &ProposalState::new(title, description, author, kind, status, script),
+                );
+                proposal_id
+            }
+            None => {
+                let proposal_id = self.proposal_list.len();
+                self.active_proposal.insert(&author, &proposal_id);
+                self.proposal_list.push(&ProposalState::new(
+                    title,
+                    description,
+                    author,
+                    kind,
+                    status,
+                    script,
+                ));
+                proposal_id
+            }
         }
-        let description = description.unwrap_or_default();
-        if description.len() > 1000 {
-            env::panic(b"Field description mus be less 1000 lenght")
-        }
-        self.proposal_list.push(&ProposalState::new(
-            title,
-            description,
-            author,
-            kind,
-            status,
-            script,
-        ));
-        self.proposal_list.len() - 1
     }
 
     pub fn member_list(self, offset: Option<u64>, limit: Option<u64>) -> Vec<AccountId> {
@@ -367,6 +464,7 @@ impl Society {
         for state in self.proposal_list.iter().skip(start_index as usize) {
             result.push(Proposal {
                 id,
+                timestamp: state.timestamp,
                 title: state.title,
                 kind: state.kind,
                 status: state.status,
@@ -426,7 +524,7 @@ mod unit {
         let context = new_context(accounts(1));
         testing_env!(context.build());
         let contract = new_contract();
-        assert_eq!(U128(96926860000000000000000000), contract.balance());
+        assert_eq!(U128(86926860000000000000000000), contract.balance());
     }
 
     #[test]
@@ -446,6 +544,19 @@ mod unit {
         testing_env!(context.build());
         let contract = new_contract();
         assert!(contract.is_member(accounts(1).into()));
+    }
+
+    #[test]
+    fn add_fund_proposal() {
+        let context = new_context(accounts(1));
+        testing_env!(context.build());
+        let mut contract = new_contract();
+        let proposal_id = contract.add_fund_proposal(
+            "a".to_string(),
+            "b".to_string(),
+            "{\"fund\": \"1000000000000000000000000\"}".to_string(),
+        );
+        assert_eq!(0, proposal_id);
     }
 
     #[test]

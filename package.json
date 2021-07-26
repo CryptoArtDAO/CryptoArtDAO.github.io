@@ -12,7 +12,7 @@
   "scripts": {
     "contract-deploy": "yarn contract-build && yarn contract-only-deploy",
     "contract-only-deploy": "node contract/deploy",
-    "contract-qa": "yarn contract-fmt && yarn contract-lint && yarn contract-test",
+    "contract-qa": "yarn contract-fmt && yarn contract-build && yarn contract-lint && yarn contract-test",
     "contract-test": "cargo test",
     "contract-lint": "cargo fmt --all -- --check && cargo clippy --all-targets",
     "contract-fmt": "cargo fmt",

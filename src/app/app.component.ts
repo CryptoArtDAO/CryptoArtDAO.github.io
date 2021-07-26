@@ -1,9 +1,5 @@
-import {
-  Component,
-} from '@angular/core';
-import {
-  WalletService,
-} from "./service/wallet.service";
+import {Component,} from '@angular/core';
+import {WalletService,} from "./service/wallet.service";
 
 
 @Component({
@@ -16,8 +12,13 @@ export class AppComponent {
   formProposalForBecomeMember = false
   proposalForBecomeMemberTitle = ''
   proposalForBecomeMemberDescription = ''
+  proposalFundTitle = ''
+  proposalFundDescription = ''
+  proposalFundValue = 0
   showConsoleHelp = false
+  showFormProposalFund = false
   showHelp = false
+  showArchive = false
   voteProcess = false
   proposalProcess = false
 
@@ -28,8 +29,18 @@ export class AppComponent {
 
   sampleMemberProposal(): string {
     return JSON.stringify({
-      title: 'max 170',
-      description: 'max 1k'
+      title: 'optional max 170',
+      description: 'optional max 1k'
+    });
+  }
+
+  sampleFundProposal(): string {
+    return JSON.stringify({
+      title: 'require max 170',
+      description: 'require max 1k',
+      script: JSON.stringify({
+        fund: '10000000000000000000000000',
+      }),
     });
   }
 
@@ -47,12 +58,20 @@ export class AppComponent {
     this.formProposalForBecomeMember = !this.formProposalForBecomeMember
   }
 
+  toggleFormProposalFund(): void {
+    this.showFormProposalFund = !this.showFormProposalFund
+  }
+
   toggleConsoleHelp(): void {
     this.showConsoleHelp = !this.showConsoleHelp
   }
 
   toggleHelp(): void {
     this.showHelp = !this.showHelp
+  }
+
+  toggleArchive(): void {
+    this.showArchive = !this.showArchive
   }
 
   voteApprove(proposal_id: number): void {
@@ -74,6 +93,20 @@ export class AppComponent {
     this.wallet.addMemberProposal(this.proposalForBecomeMemberTitle, this.proposalForBecomeMemberDescription).then(async () => {
       await this.wallet.update()
       this.formProposalForBecomeMember = false
+      this.proposalProcess = false
+    })
+  }
+
+  sendProposalFund(): void {
+    this.proposalProcess = true
+    this.wallet.addFundProposal(
+      this.proposalFundTitle,
+      this.proposalFundDescription,
+      this.proposalFundValue.toString(),
+    ).then(async () => {
+      await this.wallet.update()
+      this.showFormProposalFund = false
+      this.proposalProcess = false
     })
   }
 

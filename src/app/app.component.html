@@ -414,11 +414,58 @@
             color="accent">Send
     </button>
   </div>
-  <h2>Member request for new become member of {{title}}</h2>
+  <button mat-raised-button color="primary"
+          (click)="toggleFormProposalFund()"
+          [disabled]="!wallet.isMember">
+    <mat-icon>attach_money</mat-icon>
+    I have IDEA and my need FUND
+  </button>
+  <div class="AddProposalForBecomeMember" *ngIf="showFormProposalFund">
+    <p>
+      <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
+        <mat-label>Title</mat-label>
+        <input matInput placeholder="Briefly like on twitter"
+               required="required"
+               [disabled]="proposalProcess"
+               [(ngModel)]="proposalFundTitle" max="170">
+      </mat-form-field>
+    </p>
+    <p>
+      <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
+        <mat-label>Description</mat-label>
+        <textarea matInput
+                  required="required"
+                  [disabled]="proposalProcess"
+                  placeholder="Tell about yourself you have 1000 characters" maxlength="1000"
+                  [(ngModel)]="proposalFundDescription"></textarea>
+      </mat-form-field>
+    </p>
+    <p>
+      <mat-form-field class="AddProposalForBecomeMember__input" appearance="fill">
+        <mat-label>Amount</mat-label>
+        <input matInput placeholder="How match?"
+               type="number"
+               required="required"
+               [disabled]="proposalProcess"
+               [(ngModel)]="proposalFundValue" min="1">
+      </mat-form-field>
+    </p>
+    <button mat-raised-button
+            [disabled]="proposalProcess"
+            (click)="toggleFormProposalFund()"
+            color="primary">Cancel
+    </button>
+    <button mat-raised-button
+            [disabled]="proposalProcess"
+            (click)="sendProposalFund()"
+            color="accent">Send
+    </button>
+  </div>
+  <h2 *ngIf="wallet.proposalActiveList.length > 0">Active Proposal</h2>
   <ul>
     <li class="itemList"
-        *ngFor="let item of wallet.proposalList">
-      <p><b>{{item.proposal.kind}}</b> {{item.proposal.status}} {{item.proposal.author}} {{item.proposal.title}} ({{item.proposal.vote.approve}}
+        *ngFor="let item of wallet.proposalActiveList">
+      <p><b>{{item.proposal.kind}}{{ item.proposal.kind === 'FundRequest' ? ' ' + item.fund + 'N ': ''}}</b> {{item.proposal.status}} {{item.proposal.author}} {{item.proposal.title}} ({{item.proposal.vote.approve}}
         vs {{item.proposal.vote.reject}})</p>
       <p>{{item.proposal.description}}</p>
       <div *ngIf="item.canVote && item.proposal.status === 'Vote'">
@@ -433,10 +480,21 @@
                 color="accent">reject
         </button>
       </div>
-
     </li>
   </ul>
-
+  <button mat-button
+          *ngIf="wallet.proposalArchiveList.length > 0"
+          (click)="toggleArchive()"
+          color="primary">Archive Proposal
+  </button>
+  <ul *ngIf="showArchive">
+    <li class="itemList"
+        *ngFor="let item of wallet.proposalArchiveList">
+      <p><p><b>{{item.proposal.kind}}{{ item.proposal.kind === 'FundRequest' ? ' ' + item.fund + 'N ': ''}}</b> {{item.proposal.status}} {{item.proposal.author}} {{item.proposal.title}} ({{item.proposal.vote.approve}}
+        vs {{item.proposal.vote.reject}})</p>
+      <p>{{item.proposal.description}}</p>
+    </li>
+  </ul>
   <!-- Next Steps -->
   <button mat-button
           (click)="toggleConsoleHelp()"
@@ -466,7 +524,14 @@
         <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
         </svg>
-        <span>Membership request</span>
+        <span>Membership</span>
+      </button>
+
+      <button class="card card-small" (click)="selection.value = 'add_fund_proposal'" tabindex="0">
+        <svg class="material-icons" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        </svg>
+        <span>Funding</span>
       </button>
 
       <button class="card card-small" (click)="selection.value = 'vote'" tabindex="0">
@@ -485,6 +550,10 @@
 npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
    call {{wallet.contractName}} add_member_proposal \
    '{{sampleMemberProposal()}}'</pre>
+      <pre *ngSwitchCase="'add_fund_proposal'">npx near login
+npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
+   call {{wallet.contractName}} add_fund_proposal \
+   '{{sampleFundProposal()}}'</pre>
       <pre *ngSwitchCase="'vote'">npx near login
 npx near --accountId {{wallet.isAuthenticated() ? wallet.accountId : '%accountId%'}} \
    call {{wallet.contractName}} vote_approve '{{sampleVote()}}'

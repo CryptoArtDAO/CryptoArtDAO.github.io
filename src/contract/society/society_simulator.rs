@@ -170,7 +170,7 @@ fn add_member_proposal() {
         }),
         0, // deposit
     );
-    assert_burnt_gas("add_member_proposal_1", &result, "4", None);
+    assert_burnt_gas("add_member_proposal_1", &result, "4.5", None);
     let actual: Vec<Proposal> = contract
         .view(contract.account_id(), "proposal_list", &args(json!({})))
         .unwrap_json();

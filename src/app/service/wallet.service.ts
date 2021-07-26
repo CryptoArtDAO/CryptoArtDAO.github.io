@@ -1,13 +1,20 @@
 import {Injectable,} from '@angular/core';
 import getConfig from '../../config'
 import {connect, Contract, keyStores, WalletConnection,} from 'near-api-js'
-import {formatNearAmount,} from "near-api-js/lib/utils/format";
+import {
+  formatNearAmount,
+  parseNearAmount,
+} from "near-api-js/lib/utils/format";
 
 const nearConfig = getConfig('development') // TODO use process.env.NODE_ENV || 'development'
-
+const toNear = (balance: string) => Math.floor(parseFloat(formatNearAmount(balance)) * 100) / 100
 interface ProposalVote {
   approve: number
   reject: number
+}
+
+interface FundScript {
+  fund: string
 }
 
 interface Proposal {
@@ -17,11 +24,13 @@ interface Proposal {
   kind: string
   status: string
   author: string
+  script: string
   vote: ProposalVote
 }
 
 interface ProposalOfAccount {
   proposal: Proposal
+  fund: number
   canVote: boolean
 }
 
@@ -37,6 +46,8 @@ interface Society extends Contract {
   can_vote(param: Object): Promise<boolean>
 
   add_member_proposal(param: Object): Promise<number>
+
+  add_fund_proposal(param: Object): Promise<number>
 
   vote_reject(param: Object, gas: string, amount: string): Promise<void>
 
@@ -54,6 +65,8 @@ export class WalletService {
   balance: number = 0
   memberList: string[] = []
   proposalList: ProposalOfAccount[] = []
+  proposalArchiveList: ProposalOfAccount[] = []
+  proposalActiveList: ProposalOfAccount[] = []
   isMember: boolean = false
 
   // constructor(@Inject(WINDOW) private window: Window) {
@@ -87,6 +100,7 @@ export class WalletService {
         'can_vote',
       ],
       changeMethods: [
+        'add_fund_proposal',
         'add_member_proposal',
         'vote_approve',
         'vote_reject',
@@ -103,7 +117,7 @@ export class WalletService {
   }
 
   async updateBalance(): Promise<void> {
-    this.balance = Math.floor(parseFloat(formatNearAmount(await this.contract.balance())) * 100) / 100
+    this.balance = toNear(await this.contract.balance())
   }
 
   async updateMemberList(): Promise<void> {
@@ -118,6 +132,10 @@ export class WalletService {
         const out = <ProposalOfAccount>{
           proposal: await proposal
         }
+        if (out.proposal.kind === 'FundRequest') {
+          const  fundScript:FundScript = JSON.parse(out.proposal.script)
+          out.fund = toNear(fundScript.fund)
+        }
         out.canVote = false
         if (this.accountId) {
           const catVote = await this.canVote(proposal.id, this.accountId)
@@ -126,6 +144,8 @@ export class WalletService {
         return out
       })
     )
+    this.proposalArchiveList = this.proposalList.filter(proposal => proposal.proposal.status !== 'Vote')
+    this.proposalActiveList = this.proposalList.filter(proposal => proposal.proposal.status === 'Vote')
   }
 
   async voteReject(proposal_id: number): Promise<void> {
@@ -174,6 +194,18 @@ export class WalletService {
     )
   }
 
+  addFundProposal(title: string, description: string, fund: string): Promise<number> {
+    return this.contract.add_fund_proposal(
+      {
+        title,
+        description,
+        script: JSON.stringify({
+          fund: parseNearAmount(fund)
+        })
+      },
+    )
+  }
+
   signIn(): void {
     // Allow the current app to make calls to the specified contract on the
     // user's behalf.
@@ -188,5 +220,6 @@ export class WalletService {
 
   signOut(): void {
     this.connection.signOut()
+    this.accountId = null
   }
 }
